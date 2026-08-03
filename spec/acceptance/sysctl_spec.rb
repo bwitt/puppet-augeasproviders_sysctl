@@ -202,6 +202,49 @@ describe 'Sysctl Tests' do
           end
         end
 
+        # Regression for cross-target prefetch misattribution: a key managed at
+        # a custom target must still be written there when the same key already
+        # exists in another resource's target file (e.g. the default sysctl
+        # config). Previously #instances read on-disk state for every key from
+        # only the first reference resource's target and matched by name, so the
+        # pre-existing copy marked the custom-target resource already-persisted
+        # and #flush skipped the write, leaving the custom file empty.
+        #
+        # 'fs.nr_open' sorts before 'net.core.rmem_max', so its (default) target
+        # is the file prefetch reads first, reproducing the misattribution.
+        context 'when a managed key also exists in another target file' do
+          let(:custom_target) { '/etc/sysctl.d/30-augeasproviders-regression.conf' }
+
+          let(:manifest) do
+            <<-EOM
+              sysctl { 'fs.nr_open':
+                value => '100004',
+                apply => false,
+              }
+              sysctl { 'net.core.rmem_max':
+                value  => '134217728',
+                target => '/etc/sysctl.d/30-augeasproviders-regression.conf',
+                apply  => false,
+              }
+            EOM
+          end
+
+          before do
+            on(host, "rm -f #{custom_target}")
+            on(host, "grep -q '^net.core.rmem_max' #{sysctl_conf} || echo 'net.core.rmem_max = 1' >> #{sysctl_conf}")
+          end
+
+          it 'writes the key to its own target file' do
+            apply_manifest_on(host, manifest, catch_failures: true)
+            expect(file_contents_on(host, custom_target)).to match(%r{net\.core\.rmem_max = 134217728})
+          end
+
+          it 'is idempotent' do
+            apply_manifest_on(host, manifest, catch_failures: true)
+            apply_manifest_on(host, manifest, { catch_changes: true })
+          end
+        end
+
         context 'when using a target file' do
           let(:manifest) do
             <<-EOM

@@ -100,14 +100,23 @@ Puppet::Type.type(:sysctl).provide(:augeas, parent: Puppet::Type.type(:augeaspro
 
     if reference_resources
       reference_resource_titles = reference_resources.map { |_ref_name, ref_obj| ref_obj.title }
-      resource_dup = reference_resources.first.last.dup
 
-      collect_augeas_resources(
-        resource_dup,
-        reference_resource_titles,
-        resource_dup[:target],
-        resources
-      )
+      # Collect the on-disk state of each managed key from *its own* target
+      # file. Collected entries are matched back to catalog resources by name
+      # only, so reading every key from a single file (previously the first
+      # reference resource's target) attributes a key found in one file to a
+      # resource whose target is a different file. That resource is then marked
+      # persist => :true and its write is skipped in #flush, leaving its real
+      # target file untouched. Grouping by target keeps each read scoped to the
+      # file the resource actually manages.
+      reference_resources.values.group_by { |ref_obj| ref_obj[:target] }.each_value do |grouped_resources|
+        collect_augeas_resources(
+          grouped_resources.first.dup,
+          grouped_resources.map(&:title),
+          grouped_resources.first[:target],
+          resources
+        )
+      end
 
       sysctl_args = if Facter.value(:kernel) == 'OpenBSD'
                       # OpenBSD doesn't support -e
