@@ -25,7 +25,7 @@ Puppet::Type.type(:sysctl).provide(:augeas, parent: Puppet::Type.type(:augeaspro
   end
 
   def self.sysctl_set(key, value, silent = false)
-    if Facter.value(:kernel) == :openbsd
+    if Facter.value(:kernel) == 'OpenBSD'
       sysctl("#{key}=#{value}")
     else
       sysctl('-w', %(#{key}=#{value}))
@@ -111,7 +111,7 @@ Puppet::Type.type(:sysctl).provide(:augeas, parent: Puppet::Type.type(:augeaspro
 
       sysctl_args = if Facter.value(:kernel) == 'OpenBSD'
                       # OpenBSD doesn't support -e
-                      ['']
+                      []
                     elsif Facter.value(:kernel) == 'FreeBSD'
                       ['-ieW']
                     else
@@ -120,9 +120,7 @@ Puppet::Type.type(:sysctl).provide(:augeas, parent: Puppet::Type.type(:augeaspro
 
       # Split this into chunks so that we don't exceed command line limits
       reference_resource_titles.each_slice(30) do |resource_title_slice|
-        sysctl_args << resource_title_slice
-
-        sysctl_output += sysctl(sysctl_args.flatten)
+        sysctl_output += sysctl(sysctl_args + resource_title_slice)
       end
     else
       targets = ['/etc/sysctl.d/*.conf', '/etc/sysctl.conf']
