@@ -104,6 +104,43 @@ describe provider_class do
     end
   end
 
+  context 'when prefetching many resources' do
+    let(:tmptarget) { aug_fixture('empty') }
+    let(:target) { tmptarget.path }
+    let(:names) { (1..31).map { |i| "net.test.key#{i}" } }
+    let(:resources) do
+      names.to_h do |name|
+        [name, Puppet::Type.type(:sysctl).new(name: name, value: '1', target: target, provider: 'augeas')]
+      end
+    end
+
+    it 'queries each chunk of keys once' do
+      expect(provider_class).to receive(:sysctl).with(['-e'] + names[0, 30]).once.and_return("net.test.key1 = 1\n")
+      expect(provider_class).to receive(:sysctl).with(['-e', names[30]]).once.and_return("net.test.key31 = 1\n")
+
+      expect(provider_class.instances(resources).map(&:name)).to eq(['net.test.key1', 'net.test.key31'])
+    end
+
+    it 'does not pass an empty argument on OpenBSD' do
+      allow(Facter).to receive(:value).and_call_original
+      allow(Facter).to receive(:value).with(:kernel).and_return('OpenBSD')
+      expect(provider_class).to receive(:sysctl).with(names[0, 30]).once.and_return('')
+      expect(provider_class).to receive(:sysctl).with([names[30]]).once.and_return('')
+
+      provider_class.instances(resources)
+    end
+  end
+
+  context 'when setting a live value' do
+    it 'uses name=value without -w on OpenBSD' do
+      allow(Facter).to receive(:value).and_call_original
+      allow(Facter).to receive(:value).with(:kernel).and_return('OpenBSD')
+      expect(provider_class).to receive(:sysctl).with('net.ipv4.ip_forward=1')
+
+      provider_class.sysctl_set('net.ipv4.ip_forward', '1')
+    end
+  end
+
   context 'with full file' do
     let(:tmptarget) { aug_fixture('full') }
     let(:target) { tmptarget.path }
