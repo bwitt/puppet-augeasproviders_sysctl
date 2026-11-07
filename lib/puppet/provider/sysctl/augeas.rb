@@ -331,6 +331,14 @@ Puppet::Type.type(:sysctl).provide(:augeas, parent: Puppet::Type.type(:augeaspro
     set_managed_comment(aug, resource[:name], value)
   end
 
+  # sysctl can exit successfully even when the kernel rejects the value
+  def verify_live_value(value)
+    live = self.class.sysctl_get(resource[:name])
+    return if live.split.join(' ') == value.split.join(' ')
+
+    raise Puppet::Error, "Failed to set live value of `#{resource[:name]}` to '#{value}', got '#{live}'"
+  end
+
   def flush
     if resource[:ensure] == :absent
       super
@@ -340,6 +348,7 @@ Puppet::Type.type(:sysctl).provide(:augeas, parent: Puppet::Type.type(:augeaspro
         if value
           silent = (resource[:silent] == :true)
           self.class.sysctl_set(resource[:name], value, silent)
+          verify_live_value(value) unless silent
         end
       end
 
