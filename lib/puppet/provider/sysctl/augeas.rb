@@ -271,7 +271,17 @@ Puppet::Type.type(:sysctl).provide(:augeas, parent: Puppet::Type.type(:augeaspro
   end
 
   def valid_resource?(name)
-    @property_hash.is_a?(Hash) && @property_hash[:name] == name
+    return true if @property_hash.is_a?(Hash) && @property_hash[:name] == name
+    return false if @live_checked
+
+    # The key may have appeared after prefetch, e.g. by loading a kernel
+    # module earlier in the run
+    @live_checked = true
+    value = self.class.sysctl_get(name)
+    @property_hash = { name: name, ensure: :present, value: value, apply: :true, persist: :false }
+    true
+  rescue Puppet::ExecutionFailure
+    false
   end
 
   def exists?
