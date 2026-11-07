@@ -53,6 +53,12 @@ Puppet::Type.type(:sysctl).provide(:augeas, parent: Puppet::Type.type(:augeaspro
     end
   end
 
+  # ruby-augeas returns ASCII-8BIT strings, which never compare equal to
+  # non-ASCII UTF-8 strings from the catalog
+  def self.utf8(str)
+    str&.dup&.force_encoding(Encoding::UTF_8)
+  end
+
   confine feature: :augeas
 
   def self.collect_augeas_resources(res, entries, target = '/etc/sysctl.conf', resources)
@@ -69,7 +75,7 @@ Puppet::Type.type(:sysctl).provide(:augeas, parent: Puppet::Type.type(:augeaspro
         matches = aug.match("$target/#{entry}")
         next if matches.empty?
 
-        value = aug.get(matches.first)
+        value = utf8(aug.get(matches.first))
 
         resource = {
           name: entry,
@@ -83,7 +89,7 @@ Puppet::Type.type(:sysctl).provide(:augeas, parent: Puppet::Type.type(:augeaspro
         # the sysctl name
         cmtnode = aug.match("$target/#comment[following-sibling::*[1][self::#{entry}]]")
         unless cmtnode.empty?
-          comment = aug.get(cmtnode[0])
+          comment = utf8(aug.get(cmtnode[0]))
           resource[:comment] = comment.sub(%r{^#{resource[:name]}:\s*}, '') if comment.match(%r{#{resource[:name]}:})
         end
 
@@ -322,7 +328,7 @@ Puppet::Type.type(:sysctl).provide(:augeas, parent: Puppet::Type.type(:augeaspro
   alias_method :val=, :value=
 
   define_aug_method(:comment) do |aug, resource|
-    comment = aug.get("$target/#comment[following-sibling::*[1][self::#{resource[:name]}]][. =~ regexp('#{resource[:name]}:.*')]")
+    comment = utf8(aug.get("$target/#comment[following-sibling::*[1][self::#{resource[:name]}]][. =~ regexp('#{resource[:name]}:.*')]"))
     comment.sub!(%r{^#{resource[:name]}:\s*}, '') if comment
     comment || ''
   end
