@@ -84,6 +84,8 @@ Puppet::Type.newtype(:sysctl) do
 
     def insync?(is)
       return true unless resource[:persist] == :true
+      # Without the entry, a comment would be orphaned (silent mode)
+      return true unless provider.valid_resource?(resource[:name])
 
       super
     end

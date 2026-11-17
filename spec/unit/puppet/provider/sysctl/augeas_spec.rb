@@ -445,6 +445,29 @@ describe provider_class do
         expect(@logs.first).to be_nil
       end
     end
+
+    context 'when silent and the key does not exist' do
+      it 'does not add a comment' do
+        expect(provider_class).to receive(:sysctl).with(['-e', 'fs.missing']).twice.and_return('')
+        allow(provider_class).to receive(:sysctl).with('-n', 'fs.missing').and_raise(Puppet::ExecutionFailure, 'unknown key')
+        expect(provider_class).not_to receive(:sysctl).with('-w', 'fs.missing=1')
+
+        apply!(Puppet::Type.type(:sysctl).new(
+                 name: 'fs.missing',
+                 value: '1',
+                 comment: 'test comment',
+                 silent: true,
+                 target: target,
+                 provider: 'augeas'
+               ))
+
+        aug_open(target, 'Sysctl.lns') do |aug|
+          expect(aug.match("#comment[. =~ regexp('fs.missing:.*')]")).to eq([])
+        end
+
+        expect(@logs.first).to be_nil
+      end
+    end
   end
 
   context 'with small file' do
