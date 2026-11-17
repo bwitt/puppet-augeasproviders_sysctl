@@ -6,13 +6,13 @@
 
 ### Resource types
 
-* [`sysctl`](#sysctl): Manages entries in /etc/sysctl.conf.
+* [`sysctl`](#sysctl): Manages sysctl entries, both live and in sysctl configuration files.
 
 ## Resource types
 
 ### <a name="sysctl"></a>`sysctl`
 
-Manages entries in /etc/sysctl.conf.
+Manages sysctl entries, both live and in sysctl configuration files.
 
 #### Properties
 
@@ -88,4 +88,5 @@ Default value: `false`
 ##### <a name="-sysctl--target"></a>`target`
 
 The file in which to store the settings, defaults to
-`/etc/sysctl.conf`.
+`/etc/sysctl.d/99-puppet.conf` on Debian 13+ and Ubuntu 26.04+, and
+`/etc/sysctl.conf` elsewhere.

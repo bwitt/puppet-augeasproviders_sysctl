@@ -1,10 +1,10 @@
-# Manages entries in /etc/sysctl.conf
+# Manages sysctl entries
 #
 # Copyright (c) 2012 Dominic Cleal
 # Licensed under the Apache License, Version 2.0
 
 Puppet::Type.newtype(:sysctl) do
-  @doc = 'Manages entries in /etc/sysctl.conf.'
+  @doc = 'Manages sysctl entries, both live and in sysctl configuration files.'
 
   ensurable
 
@@ -76,7 +76,8 @@ Puppet::Type.newtype(:sysctl) do
 
   newparam(:target) do
     desc "The file in which to store the settings, defaults to
-      `/etc/sysctl.conf`."
+      `/etc/sysctl.d/99-puppet.conf` on Debian 13+ and Ubuntu 26.04+, and
+      `/etc/sysctl.conf` elsewhere."
   end
 
   newproperty(:comment) do
